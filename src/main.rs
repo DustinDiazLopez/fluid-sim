@@ -1,6 +1,12 @@
-use ggez::event::{self, EventHandler};
+// https://docs.rs/good-web-game/latest/good_web_game/
+
+use good_web_game as ggez;
+use std::path;
+use std::env;
+
+use ggez::event::{EventHandler};
 use ggez::graphics::{self, Color};
-use ggez::{Context, ContextBuilder, GameResult};
+use ggez::{Context, GameResult};
 use glam;
 
 mod sim;
@@ -11,43 +17,45 @@ fn translate_point(draw_param: &graphics::DrawParam, (x, y): (f32, f32)) -> glam
     return glam::Vec2::from(draw_param.src.point()) + glam::vec2(x, y);
 }
 
-fn main() {
-    // Make a Context.
+fn main() -> GameResult {
     let mut cube = FluidCube::new(10, 1.0, 1.0, 1.0);
     cube.add_density(1, 1, 1, 1.0);
     cube.add_velocity(1, 1, 1, 1.0, 1.0, 1.0);
     cube.step();
     println!("Hello, world!");
 
-    let (mut ctx, event_loop) = ContextBuilder::new("FluidSim", "Fluid Simulation")
-        .build()
-        .expect("ayooo, could not create context!");
+    let resource_dir = if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
+        let mut path = path::PathBuf::from(manifest_dir);
+        path.push("resources");
+        path
+    } else {
+        path::PathBuf::from("./resources")
+    };
 
-    // Create an instance of your event handler.
-    // Usually, you should provide it with the Context object to
-    // use when setting your game up.
-    let the_sim = SimulationState::new(&mut ctx);
+    return ggez::start(
+        ggez::conf::Conf::default()
+        .high_dpi(true)
+            // .cache(miniquad::conf::Cache::Tar(include_bytes!("resources.tar")))
+            .physical_root_dir(Some(resource_dir)),
+        |mut context| Box::new(SimulationState::new(&mut context)),
+    );
 
-    // Run!
-    event::run(ctx, event_loop, the_sim);
 }
 
 struct SimulationState {
-    // Your state here...
+    
 }
 
 impl SimulationState {
     pub fn new(_ctx: &mut Context) -> SimulationState {
-        // Load/create resources such as images here.
         SimulationState {
-            // ...
+            
         }
     }
 }
 
 impl EventHandler for SimulationState {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
-        // Update code here...
         return Ok(());
     }
 
