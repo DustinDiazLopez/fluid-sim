@@ -8,12 +8,12 @@ use ggez::{Context, GameResult};
 use glam;
 
 mod sim_2d;
-use sim_2d::simulation::FluidPlane;
+use sim_2d::simulation;
 
-const N: i32 = 32;
-const SCALE: i32 = 5;
-
-const WINDOW_DIM: i32 = N * SCALE;
+use simulation::FluidPlane;
+use simulation::N;
+use simulation::SCALE;
+use simulation::WINDOW_DIM;
 
 fn main() -> GameResult {
     let resource_dir = if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
@@ -26,8 +26,8 @@ fn main() -> GameResult {
 
     return ggez::start(
         ggez::conf::Conf::default()
-            .window_width(WINDOW_DIM)
-            .window_height(WINDOW_DIM)
+            .window_width(WINDOW_DIM as i32)
+            .window_height(WINDOW_DIM as i32)
             .window_resizable(false)
             .window_title("Fluid Simulation :D".to_owned())
             .high_dpi(true)
@@ -56,17 +56,17 @@ impl SimulationState {
         let viscosity = 0.0;
         let dt = 0.1;
         let iter = 4;
-        let fluid = FluidPlane::new(size, SCALE as f32, diffusion, viscosity, dt, iter);
+        let fluid = FluidPlane::new(size as i32, SCALE as f32, diffusion, viscosity, dt, iter);
         SimulationState {
-            size,
+            size: size as i32,
             diffusion,
             viscosity,
             dt,
             fluid,
             iter,
             start_simulation: false,
-            real_size: N,
-            scale: SCALE,
+            real_size: N as i32,
+            scale: SCALE as i32,
         }
     }
 }
@@ -77,7 +77,8 @@ impl EventHandler for SimulationState {
         let amount_x = _x - _dx;
         let amount_y = _y - _dy;
         self.fluid.add_density(_x as i32, _y as i32, 100.0);
-        self.fluid.add_velocity(_x as i32, _y as i32, amount_x, amount_y);
+        self.fluid.add_velocity(_x as i32 / self.scale, _y as i32 / self.scale, amount_x, amount_y);
+        println!("\t {} {} {} {}", _x, _y, _dx, _dy)
     }
 
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
@@ -85,13 +86,19 @@ impl EventHandler for SimulationState {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
+        let canvas = graphics::Canvas::new(ctx, WINDOW_DIM as u16, WINDOW_DIM as u16)?;
+        graphics::set_canvas(ctx, Some(&canvas));
         graphics::clear(ctx, Color::BLACK);
+
         if self.start_simulation {
             self.fluid.step();
             self.fluid.render(ctx, self.scale as f32);
             self.fluid.fade();
         }
-        // let _present_result = graphics::present(ctx);
+
+        graphics::set_canvas(ctx, None);
+        graphics::draw(ctx, &canvas, graphics::DrawParam::default())?;
+        graphics::present(ctx)?;
         return Ok(());
     }
 }
