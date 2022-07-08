@@ -1,12 +1,37 @@
+
 macro_rules! _IX {
     ($x:expr, $y:expr, $size:expr) => {
-        (($x) + ($y) * ($size - 1)) as usize
+        (($x) + ($y) * ($size - 2)) as usize
     };
 }
 
 pub mod simulation {
-    #[derive(Debug, Clone)]
+    use good_web_game as ggez;
+    use ggez::event::{EventHandler};
+    use ggez::graphics::{self, Color, DrawMode};
+    use ggez::{Context};
+    use glam;
+
+    use std::collections::HashMap;
+
+
+    fn translate_point(draw_param: &graphics::DrawParam, (x, y): (f32, f32)) -> glam::Vec2 {
+        return glam::Vec2::from(draw_param.src.point()) + glam::vec2(x, y);
+    }
+
+    fn clamp(v: f32, min: f32, max: f32) -> f32 {
+        if v < min {
+            return min;
+        } else if v > max {
+            return max;
+        }
+
+        return v;
+    }
+
+    // #[derive(Debug, Clone)]
     pub struct FluidPlane {
+        iter: i32,
         size: i32,
         dt: f32,
         diff: f32,
@@ -17,11 +42,26 @@ pub mod simulation {
         vy: Vec<f32>,
         vx0: Vec<f32>,
         vy0: Vec<f32>,
+
+        rect_cache: HashMap<(i32, i32), graphics::Rect>,
     }
 
     impl FluidPlane {
-        pub fn new(size: i32, diffusion: f32, viscosity: f32, dt: f32) -> Self {
+        pub fn new(size: i32, scale: f32, diffusion: f32, viscosity: f32, dt: f32, iter: i32) -> Self {
             let arr_size: usize = size as usize * size as usize;
+            let mut rect_cache = HashMap::new();
+
+            for i in 0..size {
+                for j in 0..size {
+                    let x = i as f32 * scale;
+                    let y = j as f32 * scale;
+                    let rect = graphics::Rect::new(x, y, scale, scale);
+
+                    rect_cache.insert((i, j), rect);
+
+                }
+            }
+
             return FluidPlane {
                 size: size,
                 dt: dt,
@@ -33,6 +73,8 @@ pub mod simulation {
                 vy: vec![0_f32; arr_size],
                 vx0: vec![0_f32; arr_size],
                 vy0: vec![0_f32; arr_size],
+                iter: iter,
+                rect_cache,
             };
         }
 
@@ -41,19 +83,20 @@ pub mod simulation {
             let visc = self.visc;
             let diff = self.diff;
             let dt = self.dt;
+            let iter = self.iter;
             let mut vx = &mut self.vx;
             let mut vy = &mut self.vy;
             let mut vx0 = &mut self.vx0;
             let mut vy0 = &mut self.vy0;
             let mut s = &mut self.s;
             let mut density = &mut self.density;
-            utils::diffuse(1, &mut vx0, &vx, visc, dt, 4, size_n);
-            utils::diffuse(2, &mut vy0, &vy, visc, dt, 4, size_n);
-            utils::project(&mut vx0, &mut vy0, &mut vx, &mut vy, 4, size_n);
+            utils::diffuse(1, &mut vx0, &vx, visc, dt, iter, size_n);
+            utils::diffuse(2, &mut vy0, &vy, visc, dt, iter, size_n);
+            utils::project(&mut vx0, &mut vy0, &mut vx, &mut vy, iter, size_n);
             utils::advect(1, &mut vx, &vx0, &vx0, &vy0, dt, size_n);
             utils::advect(2, &mut vy, &vy0, &vx0, &vy0, dt, size_n);
-            utils::project(&mut vx, &mut vy, &mut vx0, &mut vy0, 4, size_n);
-            utils::diffuse(0, &mut s, &density, diff, dt, 4, size_n);
+            utils::project(&mut vx, &mut vy, &mut vx0, &mut vy0, iter, size_n);
+            utils::diffuse(0, &mut s, &density, diff, dt, iter, size_n);
             utils::advect(0, &mut density, &s, &vx, &vy, dt, size_n);
         }
 
@@ -67,6 +110,39 @@ pub mod simulation {
             let index = _IX!(x, y, size_n);
             self.vx[index] += amount_x;
             self.vy[index] += amount_y;
+        }
+
+        pub fn render(&self, ctx: &mut Context, scale_float: f32) {
+            let mut draw_param = graphics::DrawParam::default();
+            let draw_mode = DrawMode::Fill(graphics::FillOptions::DEFAULT);
+            for i in 0..self.size {
+                for j in 0..self.size {
+                    let x = i as f32 * scale_float;
+                    let y = j as f32 * scale_float;
+                    let d = self.density[_IX!(i, j, self.size)];
+
+                    draw_param = draw_param.dest(translate_point(&draw_param, (x, y)));
+                    let rect = *self.rect_cache.get(&(i, j)).unwrap();
+                    let mesh = graphics::MeshBuilder::new()
+                        .rectangle(draw_mode, rect, Color::new(1.0, 1.0, 1.0, d))
+                        .unwrap()
+                        .build(ctx)
+                        .unwrap();
+
+                    graphics::draw(
+                        ctx,
+                        &mesh,
+                        draw_param,
+                    ).unwrap();
+                }
+            }
+        }
+
+        pub fn fade(&mut self) {
+            for i in 0..self.density.len() {
+                let d = self.density[i];
+                self.density[i] = clamp(d - 0.1, 0.0, 1.0);
+            }
         }
     }
     pub mod utils {

@@ -67,6 +67,7 @@ pub mod simulation {
             utils::diffuse(0, &mut s, &density, diff, dt, 4, size_n);
             utils::advect(0, &mut density, &s, &vx, &vy, &vz, dt, size_n);
         }
+
         pub fn add_density(&mut self, x: i32, y: i32, z: i32, amount: f32) {
             let size_n = self.size;
             self.density[_IX!(x, y, z, size_n)] += amount;

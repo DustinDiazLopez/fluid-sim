@@ -1,94 +1,97 @@
 // https://docs.rs/good-web-game/latest/good_web_game/
 
 use good_web_game as ggez;
-use std::path;
-use std::env;
 
-use ggez::event::{EventHandler};
-use ggez::graphics::{self, Color};
+use ggez::event::EventHandler;
+use ggez::graphics::{self, Color, DrawMode};
 use ggez::{Context, GameResult};
 use glam;
 
 mod sim_2d;
 use sim_2d::simulation::FluidPlane;
 
+const N: i32 = 32;
+const SCALE: i32 = 5;
 
-fn translate_point(draw_param: &graphics::DrawParam, (x, y): (f32, f32)) -> glam::Vec2 {
-    return glam::Vec2::from(draw_param.src.point()) + glam::vec2(x, y);
-}
+const WINDOW_DIM: i32 = N * SCALE;
 
 fn main() -> GameResult {
-    let resource_dir = if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
-        let mut path = path::PathBuf::from(manifest_dir);
+    let resource_dir = if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
+        let mut path = std::path::PathBuf::from(manifest_dir);
         path.push("resources");
         path
     } else {
-        path::PathBuf::from("./resources")
+        std::path::PathBuf::from("./resources")
     };
 
     return ggez::start(
         ggez::conf::Conf::default()
-        .high_dpi(true)
+            .window_width(WINDOW_DIM)
+            .window_height(WINDOW_DIM)
+            .window_resizable(false)
+            .window_title("Fluid Simulation :D".to_owned())
+            .high_dpi(true)
             // .cache(miniquad::conf::Cache::Tar(include_bytes!("resources.tar")))
             .physical_root_dir(Some(resource_dir)),
         |mut context| Box::new(SimulationState::new(&mut context)),
     );
-
 }
 
 struct SimulationState {
     size: i32,
+    iter: i32,
     diffusion: f32,
     viscosity: f32,
     dt: f32,
-    plane: FluidPlane,
+    fluid: FluidPlane,
+    scale: i32,
+    real_size: i32,
+    start_simulation: bool,
 }
 
 impl SimulationState {
     pub fn new(_ctx: &mut Context) -> SimulationState {
-        let size = 256;
+        let size = WINDOW_DIM;
         let diffusion = 0.0;
         let viscosity = 0.0;
         let dt = 0.1;
-        let plane = FluidPlane::new(size, diffusion, viscosity, dt);
+        let iter = 4;
+        let fluid = FluidPlane::new(size, SCALE as f32, diffusion, viscosity, dt, iter);
         SimulationState {
             size,
             diffusion,
             viscosity,
             dt,
-            plane,
+            fluid,
+            iter,
+            start_simulation: false,
+            real_size: N,
+            scale: SCALE,
         }
     }
 }
 
 impl EventHandler for SimulationState {
+    fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {
+        self.start_simulation = true;
+        let amount_x = _x - _dx;
+        let amount_y = _y - _dy;
+        self.fluid.add_density(_x as i32, _y as i32, 100.0);
+        self.fluid.add_velocity(_x as i32, _y as i32, amount_x, amount_y);
+    }
+
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
         return Ok(());
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, Color::BLACK);
-        let (screen_width, screen_height) = graphics::drawable_size(ctx);
-        let (screen_width_half, screen_height_half) = (screen_width * 0.5, screen_height * 0.5);
-        let mut draw_param = graphics::DrawParam::default();
-
-        // draw
-        let text = graphics::Text::new("Hello, World!");
-        let text_rect = text.dimensions(ctx);
-
-        let text_pos = translate_point(
-            &draw_param,
-            (
-                screen_width_half - (text_rect.w * 0.5),
-                screen_height_half - (text_rect.h * 0.5)
-            )
-        );
-
-        draw_param = draw_param.dest(text_pos);
-
-        let _draw_result = graphics::draw(ctx, &text, draw_param);
-        let _present_result = graphics::present(ctx);
-        
+        if self.start_simulation {
+            self.fluid.step();
+            self.fluid.render(ctx, self.scale as f32);
+            self.fluid.fade();
+        }
+        // let _present_result = graphics::present(ctx);
         return Ok(());
     }
 }
