@@ -9,8 +9,8 @@ use ggez::graphics::{self, Color};
 use ggez::{Context, GameResult};
 use glam;
 
-mod sim;
-use sim::simulation::FluidCube;
+mod sim_2d;
+use sim_2d::simulation::FluidPlane;
 
 
 fn translate_point(draw_param: &graphics::DrawParam, (x, y): (f32, f32)) -> glam::Vec2 {
@@ -18,12 +18,6 @@ fn translate_point(draw_param: &graphics::DrawParam, (x, y): (f32, f32)) -> glam
 }
 
 fn main() -> GameResult {
-    let mut cube = FluidCube::new(10, 1.0, 1.0, 1.0);
-    cube.add_density(1, 1, 1, 1.0);
-    cube.add_velocity(1, 1, 1, 1.0, 1.0, 1.0);
-    cube.step();
-    println!("Hello, world!");
-
     let resource_dir = if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
         let mut path = path::PathBuf::from(manifest_dir);
         path.push("resources");
@@ -43,13 +37,26 @@ fn main() -> GameResult {
 }
 
 struct SimulationState {
-    
+    size: i32,
+    diffusion: f32,
+    viscosity: f32,
+    dt: f32,
+    plane: FluidPlane,
 }
 
 impl SimulationState {
     pub fn new(_ctx: &mut Context) -> SimulationState {
+        let size = 256;
+        let diffusion = 0.0;
+        let viscosity = 0.0;
+        let dt = 0.1;
+        let plane = FluidPlane::new(size, diffusion, viscosity, dt);
         SimulationState {
-            
+            size,
+            diffusion,
+            viscosity,
+            dt,
+            plane,
         }
     }
 }

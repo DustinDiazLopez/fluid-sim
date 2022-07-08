@@ -5,6 +5,7 @@ macro_rules! _IX {
 }
 
 pub mod simulation {
+    #[derive(Debug, Clone)]
     pub struct FluidCube {
         size: i32,
         dt: f32,
@@ -12,13 +13,14 @@ pub mod simulation {
         visc: f32,
         s: Vec<f32>,
         density: Vec<f32>,
-        v_x: Vec<f32>,
-        v_y: Vec<f32>,
-        v_z: Vec<f32>,
-        v_x0: Vec<f32>,
-        v_y0: Vec<f32>,
-        v_z0: Vec<f32>,
+        vx: Vec<f32>,
+        vy: Vec<f32>,
+        vz: Vec<f32>,
+        vx0: Vec<f32>,
+        vy0: Vec<f32>,
+        vz0: Vec<f32>,
     }
+
     impl FluidCube {
         pub fn new(size: i32, diffusion: f32, viscosity: f32, dt: f32) -> Self {
             let arr_size: usize = size as usize * size as usize * size as usize;
@@ -29,12 +31,12 @@ pub mod simulation {
                 visc: viscosity,
                 s: vec![0_f32; arr_size],
                 density: vec![0_f32; arr_size],
-                v_x: vec![0_f32; arr_size],
-                v_y: vec![0_f32; arr_size],
-                v_z: vec![0_f32; arr_size],
-                v_x0: vec![0_f32; arr_size],
-                v_y0: vec![0_f32; arr_size],
-                v_z0: vec![0_f32; arr_size],
+                vx: vec![0_f32; arr_size],
+                vy: vec![0_f32; arr_size],
+                vz: vec![0_f32; arr_size],
+                vx0: vec![0_f32; arr_size],
+                vy0: vec![0_f32; arr_size],
+                vz0: vec![0_f32; arr_size],
             };
         }
         pub fn step(&mut self) {
@@ -42,28 +44,28 @@ pub mod simulation {
             let visc = self.visc;
             let diff = self.diff;
             let dt = self.dt;
-            let mut v_x = &mut self.v_x;
-            let mut v_y = &mut self.v_y;
-            let mut v_z = &mut self.v_z;
-            let mut v_x0 = &mut self.v_x0;
-            let mut v_y0 = &mut self.v_y0;
-            let mut v_z0 = &mut self.v_z0;
+            let mut vx = &mut self.vx;
+            let mut vy = &mut self.vy;
+            let mut vz = &mut self.vz;
+            let mut vx0 = &mut self.vx0;
+            let mut vy0 = &mut self.vy0;
+            let mut vz0 = &mut self.vz0;
             let mut s = &mut self.s;
             let mut density = &mut self.density;
-            utils::diffuse(1, &mut v_x0, &v_x, visc, dt, 4, size_n);
-            utils::diffuse(2, &mut v_y0, &v_y, visc, dt, 4, size_n);
-            utils::diffuse(3, &mut v_z0, &v_z, visc, dt, 4, size_n);
+            utils::diffuse(1, &mut vx0, &vx, visc, dt, 4, size_n);
+            utils::diffuse(2, &mut vy0, &vy, visc, dt, 4, size_n);
+            utils::diffuse(3, &mut vz0, &vz, visc, dt, 4, size_n);
             utils::project(
-                &mut v_x0, &mut v_y0, &mut v_z0, &mut v_x, &mut v_y, 4, size_n,
+                &mut vx0, &mut vy0, &mut vz0, &mut vx, &mut vy, 4, size_n,
             );
-            utils::advect(1, &mut v_x, &v_x0, &v_x0, &v_y0, &mut v_z0, dt, size_n);
-            utils::advect(2, &mut v_y, &v_y0, &v_x0, &v_y0, &v_z0, dt, size_n);
-            utils::advect(3, &mut v_z, &v_z0, &v_x0, &v_y0, &v_z0, dt, size_n);
+            utils::advect(1, &mut vx, &vx0, &vx0, &vy0, &mut vz0, dt, size_n);
+            utils::advect(2, &mut vy, &vy0, &vx0, &vy0, &vz0, dt, size_n);
+            utils::advect(3, &mut vz, &vz0, &vx0, &vy0, &vz0, dt, size_n);
             utils::project(
-                &mut v_x, &mut v_y, &mut v_z, &mut v_x0, &mut v_y0, 4, size_n,
+                &mut vx, &mut vy, &mut vz, &mut vx0, &mut vy0, 4, size_n,
             );
             utils::diffuse(0, &mut s, &density, diff, dt, 4, size_n);
-            utils::advect(0, &mut density, &s, &v_x, &v_y, &v_z, dt, size_n);
+            utils::advect(0, &mut density, &s, &vx, &vy, &vz, dt, size_n);
         }
         pub fn add_density(&mut self, x: i32, y: i32, z: i32, amount: f32) {
             let size_n = self.size;
@@ -80,9 +82,9 @@ pub mod simulation {
         ) {
             let size_n = self.size;
             let index = _IX!(x, y, z, size_n);
-            self.v_x[index] += amount_x;
-            self.v_y[index] += amount_y;
-            self.v_z[index] += amount_z;
+            self.vx[index] += amount_x;
+            self.vy[index] += amount_y;
+            self.vz[index] += amount_z;
         }
     }
     pub mod utils {
