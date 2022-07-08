@@ -87,20 +87,20 @@ pub mod simulation {
             let diff = self.diff;
             let dt = self.dt;
             let iter = self.iter;
-            let vx = &mut self.vx;
-            let vy = &mut self.vy;
-            let vx0 = &mut self.vx0;
-            let vy0 = &mut self.vy0;
-            let s = &mut self.s;
-            let density = &mut self.density;
-            diffuse(1, vx0, vx, visc, dt, iter, size_n);
-            diffuse(2, vy0, vy, visc, dt, iter, size_n);
-            project(vx0, vy0, vx, vy, iter, size_n);
-            advect(1, vx, vx0, vx0, vy0, dt, size_n);
-            advect(2, vy, vy0, vx0, vy0, dt, size_n);
-            project(vx, vy, vx0, vy0, iter, size_n);
-            diffuse(0, s, density, diff, dt, iter, size_n);
-            advect(0, density, s, vx, vy, dt, size_n);
+            let mut vx = &mut self.vx;
+            let mut vy = &mut self.vy;
+            let mut vx0 = &mut self.vx0;
+            let mut vy0 = &mut self.vy0;
+            let mut s = &mut self.s;
+            let mut density = &mut self.density;
+            diffuse(1, &mut vx0, &mut vx, visc, dt, iter, size_n);
+            diffuse(2, &mut vy0, &mut vy, visc, dt, iter, size_n);
+            project(&mut vx0, &mut vy0, &mut vx, &mut vy, iter, size_n);
+            advect(1, &mut vx, &vx0, &vx0, &mut vy0, dt, size_n);
+            advect(2, &mut vy, &vy0, &vx0, &vy0, dt, size_n);
+            project(&mut vx, &mut vy, &mut vx0, &mut vy0, iter, size_n);
+            diffuse(0, &mut s, &mut density, diff, dt, iter, size_n);
+            advect(0, &mut density, &mut s, &mut vx, &mut vy, dt, size_n);
         }
 
         pub fn add_density(&mut self, x: i32, y: i32, amount: f32) {
@@ -134,7 +134,7 @@ pub mod simulation {
 
                     // let rect = graphics::Rect::new(x, y, scale_float, scale_float);
                     let p = graphics::DrawParam::new()
-                        .color(graphics::Color::new(1.0, 1.0, 1.0, d))
+                        .color(graphics::Color::new(1.0, 1.0, 1.0, d * scale_float))
                         .dest(glam::Vec2::new(x, y));
                     mesh_batch.add(p);
                 }

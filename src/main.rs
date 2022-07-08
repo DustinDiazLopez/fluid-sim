@@ -74,11 +74,9 @@ impl SimulationState {
 impl EventHandler for SimulationState {
     fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {
         self.start_simulation = true;
-        let amount_x = _x - _dx;
-        let amount_y = _y - _dy;
         self.fluid.add_density(_x as i32, _y as i32, 100.0);
-        self.fluid.add_velocity(_x as i32 / self.scale, _y as i32 / self.scale, amount_x, amount_y);
-        println!("\t {} {} {} {}", _x, _y, _dx, _dy)
+        self.fluid.add_velocity(_x as i32 / self.scale, _y as i32 / self.scale, _dx, _dy);
+        println!("\tmouse_event: x={_x} y={_y} dx={_dx} dy={_dy}")
     }
 
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
