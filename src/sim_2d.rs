@@ -1,9 +1,3 @@
-macro_rules! _IX {
-    ($x:expr, $y:expr, $size:expr) => {
-        (($x) + ($y) * ($size)) as usize
-    };
-}
-
 pub mod simulation {
     use ggez::event::EventHandler;
     use ggez::graphics::{self, Color, DrawMode};
@@ -40,6 +34,24 @@ pub mod simulation {
         return v;
     }
 
+    macro_rules! _IX3 {
+        ($x:expr, $y:expr, $size:expr) => {
+            (($x) + ($y) * ($size)) as usize
+        };
+    }
+
+    fn _IX2(x: i32, y: i32, size: usize) -> usize {
+        let i = clampi(x, 0, (size - 1) as i32);
+        let j = clampi(y, 0, (size - 1) as i32);
+        return _IX3!(i, j, (size - 1) as i32);
+    }
+
+    macro_rules! _IX {
+        ($x:expr, $y:expr, $size:expr) => {
+            _IX2($x, $y, $size as usize)
+        };
+    }
+
     // #[derive(Debug, Clone)]
     pub struct FluidPlane {
         iter: i32,
@@ -47,12 +59,12 @@ pub mod simulation {
         dt: f32,
         diff: f32,
         visc: f32,
-        s: [f32; ARRAY_SIZE],
-        density: [f32; ARRAY_SIZE],
-        vx: [f32; ARRAY_SIZE],
-        vy: [f32; ARRAY_SIZE],
-        vx0: [f32; ARRAY_SIZE],
-        vy0: [f32; ARRAY_SIZE],
+        s: Vec<f32>,
+        density: Vec<f32>,
+        vx: Vec<f32>,
+        vy: Vec<f32>,
+        vx0: Vec<f32>,
+        vy0: Vec<f32>,
     }
 
     impl FluidPlane {
@@ -71,12 +83,12 @@ pub mod simulation {
                 dt: dt,
                 diff: diffusion,
                 visc: viscosity,
-                s: [0_f32; ARRAY_SIZE],
-                density: [0_f32; ARRAY_SIZE],
-                vx: [0_f32; ARRAY_SIZE],
-                vy: [0_f32; ARRAY_SIZE],
-                vx0: [0_f32; ARRAY_SIZE],
-                vy0: [0_f32; ARRAY_SIZE],
+                s: vec![0_f32; arr_size],
+                density: vec![0_f32; arr_size],
+                vx: vec![0_f32; arr_size],
+                vy: vec![0_f32; arr_size],
+                vx0: vec![0_f32; arr_size],
+                vy0: vec![0_f32; arr_size],
                 iter: iter,
             };
         }
@@ -207,8 +219,8 @@ pub mod simulation {
 
     pub fn diffuse(
         b: i32,
-        x: &mut [f32; ARRAY_SIZE],
-        x0: &[f32; ARRAY_SIZE],
+        x: &mut Vec<f32>,
+        x0: &Vec<f32>,
         diff: f32,
         dt: f32,
         iter: i32,
@@ -221,10 +233,10 @@ pub mod simulation {
 
     pub fn advect(
         b: i32,
-        d: &mut [f32; ARRAY_SIZE],
-        d0: &[f32; ARRAY_SIZE],
-        veloc_x: &[f32; ARRAY_SIZE],
-        veloc_y: &[f32; ARRAY_SIZE],
+        d: &mut Vec<f32>,
+        d0: &Vec<f32>,
+        veloc_x: &Vec<f32>,
+        veloc_y: &Vec<f32>,
         dt: f32,
         size_n: i32,
     ) {
@@ -300,10 +312,10 @@ pub mod simulation {
     }
 
     pub fn project(
-        veloc_x: &mut [f32; ARRAY_SIZE],
-        veloc_y: &mut [f32; ARRAY_SIZE],
-        p: &mut [f32; ARRAY_SIZE],
-        div: &mut [f32; ARRAY_SIZE],
+        veloc_x: &mut Vec<f32>,
+        veloc_y: &mut Vec<f32>,
+        p: &mut Vec<f32>,
+        div: &mut Vec<f32>,
         iter: i32,
         size_n: i32,
     ) {
