@@ -1,9 +1,8 @@
 # Fluid Simulation
 
-[//]: # ()
-[//]: # (See example here: https://dustindiazlopez.github.io/fluid-sim/docs/)
 
-[//]: # ()
+See example here: [link](https://dustindiazlopez.github.io/fluid-sim/docs/)
+
 
 ## References
 
