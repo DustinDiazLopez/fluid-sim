@@ -6,7 +6,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-good-web-game = "0.5.0"
+bevy = "0.8.0"
+bevy-inspector-egui = "0.12.1"
 random = "0.12.2"
-glam = { version = "0.21.2", features = ["mint"] }
-miniquad = "0.3.0-alpha.38"
+
+[workspace]
+resolver = "2" # Important! wgpu/Bevy needs this!
+
+# Enable a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3

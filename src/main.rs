@@ -1,102 +1,158 @@
-// https://docs.rs/good-web-game/latest/good_web_game/
+// https://github.com/bevyengine/bevy/tree/latest/examples/2d
+// https://bevy-cheatbook.github.io/platforms/wasm.html
 
-use good_web_game as ggez;
+mod utils;
+mod fluids;
+mod debug;
 
-use ggez::event::EventHandler;
-use ggez::graphics::{self, Color, DrawMode};
-use ggez::{Context, GameResult};
-use glam;
+use fluids::simulation::sim_2d::{FluidPlane, index, clamp_index};
 
-mod sim_2d;
-use sim_2d::simulation;
+use bevy::prelude::*;
+use bevy::input::mouse::MouseMotion;
+use bevy::sprite::MaterialMesh2dBundle;
 
-use simulation::FluidPlane;
-use simulation::N;
-use simulation::SCALE;
-use simulation::WINDOW_DIM;
+fn spawn_fluid_system(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
 
-fn main() -> GameResult {
-    let resource_dir = if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
-        let mut path = std::path::PathBuf::from(manifest_dir);
-        path.push("resources");
-        path
-    } else {
-        std::path::PathBuf::from("./resources")
+    let sim_state = SimulationState::default();
+    let mesh = MaterialMesh2dBundle {
+        mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
+        transform: Transform::default().with_scale(Vec3::splat(128.)),
+        material: materials.add(ColorMaterial::from(Color::rgba(0., 1., 0., 0.3))),
+        ..default()
     };
 
-    return ggez::start(
-        ggez::conf::Conf::default()
-            .window_width(WINDOW_DIM as i32)
-            .window_height(WINDOW_DIM as i32)
-            .window_resizable(false)
-            .window_title("Fluid Simulation :D".to_owned())
-            .high_dpi(true)
-            // .cache(miniquad::conf::Cache::Tar(include_bytes!("resources.tar")))
-            .physical_root_dir(Some(resource_dir)),
-        |mut context| Box::new(SimulationState::new(&mut context)),
-    );
+    commands.spawn_bundle(Camera2dBundle::default());
+    commands.spawn_bundle(mesh).insert(sim_state);
 }
 
+fn user_mouse_fluid_system(
+    // mut commands: Commands,
+    windows: Res<Windows>,
+    mut motion_evr: EventReader<MouseMotion>,
+    mut cursor_evr: EventReader<CursorMoved>,
+    mut query: Query<&mut SimulationState>,
+) {
+    let window = windows.get_primary().expect("No primary display");
+
+    if let Some(_position) = window.cursor_position() {
+        let movement_delta_opt = motion_evr.iter().last();
+        let target_pos_opt = cursor_evr.iter().last();
+
+        if let Some(cursor_dxy) = movement_delta_opt {
+            if let Some(cursor_pos) = target_pos_opt {
+                let (dx, dy) = (cursor_dxy.delta.x, cursor_dxy.delta.y);
+                let (px, py) = (cursor_pos.position.x, cursor_pos.position.y);
+
+                for mut sim_state in query.iter_mut() {
+                    sim_state.start_simulation = true;
+                    let scale = sim_state.scale;
+                    sim_state.fluid.add_density(px as i32, py as i32, 100.0);
+                    sim_state.fluid.add_velocity(
+                        px as i32 / scale,
+                        py as i32 / scale,
+                        dx,
+                        dy,
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn simulate_fluid_system(
+    mut query: Query<&mut SimulationState>,
+) {
+    for mut sim_state in query.iter_mut() {
+        sim_state.fluid.step();
+    }
+}
+
+fn fade_fluid_system(
+    mut query: Query<&mut SimulationState>,
+) {
+    for mut sim_state in query.iter_mut() {
+        sim_state.fluid.fade();
+    }
+}
+
+fn display_fluid_state_system(
+    // time: Res<Time>,
+    mut query: Query<(&mut SimulationState)>
+) {
+    for sim_state in query.iter_mut() {
+        if sim_state.start_simulation {
+            let sz = sim_state.size;
+            for i in 0..sz {
+                for j in 0..sz {
+                    let x = i as f32;
+                    let y = j as f32;
+                    let d = sim_state.fluid.density[index!(i, j, sz)];
+
+                    // let p = graphics::DrawParam::new()
+                    //     .color(graphics::Color::new(1.0, 1.0, 1.0, d * scale_float))
+                    //     .dest(glam::Vec2::new(x, y));
+                    // mesh_batch.add(p);
+                }
+            }
+        }
+    }
+}
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_startup_system_to_stage(StartupStage::PostStartup, spawn_fluid_system)
+        .add_system(user_mouse_fluid_system)
+        .add_system(simulate_fluid_system)
+        .add_system(display_fluid_state_system)
+        .add_system(fade_fluid_system)
+        .run();
+}
+
+#[derive(Component)]
 struct SimulationState {
     size: i32,
     iter: i32,
     diffusion: f32,
     viscosity: f32,
     dt: f32,
-    fluid: FluidPlane,
     scale: i32,
     real_size: i32,
     start_simulation: bool,
+    pub fluid: FluidPlane,
 }
 
-impl SimulationState {
-    pub fn new(_ctx: &mut Context) -> SimulationState {
-        let size = WINDOW_DIM;
+impl Default for SimulationState {
+    fn default() -> Self {
+        let size = 42;
         let diffusion = 0.0;
         let viscosity = 0.0;
         let dt = 0.1;
         let iter = 4;
-        let fluid = FluidPlane::new(size as i32, SCALE as f32, diffusion, viscosity, dt, iter);
-        SimulationState {
+        let scale = 10.0;
+        let fluid = FluidPlane::new(
+            size as i32,
+            scale as f32,
+            diffusion,
+            viscosity,
+            dt,
+            iter,
+        );
+
+        Self {
             size: size as i32,
             diffusion,
             viscosity,
             dt,
             fluid,
             iter,
-            start_simulation: false,
-            real_size: N as i32,
-            scale: SCALE as i32,
+            start_simulation: true,
+            real_size: size as i32,
+            scale: scale as i32,
         }
-    }
-}
-
-impl EventHandler for SimulationState {
-    fn mouse_motion_event(&mut self, _ctx: &mut Context, _x: f32, _y: f32, _dx: f32, _dy: f32) {
-        self.start_simulation = true;
-        self.fluid.add_density(_x as i32, _y as i32, 100.0);
-        self.fluid.add_velocity(_x as i32 / self.scale, _y as i32 / self.scale, _dx, _dy);
-        println!("\tmouse_event: x={_x} y={_y} dx={_dx} dy={_dy}")
-    }
-
-    fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
-        return Ok(());
-    }
-
-    fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-        let canvas = graphics::Canvas::new(ctx, WINDOW_DIM as u16, WINDOW_DIM as u16)?;
-        graphics::set_canvas(ctx, Some(&canvas));
-        graphics::clear(ctx, Color::BLACK);
-
-        if self.start_simulation {
-            self.fluid.step();
-            self.fluid.render(ctx, self.scale as f32);
-            self.fluid.fade();
-        }
-
-        graphics::set_canvas(ctx, None);
-        graphics::draw(ctx, &canvas, graphics::DrawParam::default())?;
-        graphics::present(ctx)?;
-        return Ok(());
     }
 }
