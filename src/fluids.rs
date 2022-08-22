@@ -1,5 +1,8 @@
 pub mod simulation {
     pub mod sim_2d {
+        use bevy::prelude::Component;
+        use bevy_inspector_egui::Inspectable;
+
         use crate::utils::{clamp_i32, clamp_f32};
 
         macro_rules! actual_index {
@@ -24,7 +27,7 @@ pub mod simulation {
         pub(crate) use index;
         pub(crate) use actual_index;
 
-        // #[derive(Debug, Clone)]
+        #[derive(Debug, Component, Inspectable)]
         pub struct FluidPlane {
             size: i32,
             scale: f32,
@@ -291,7 +294,7 @@ pub mod simulation {
         }
     }
 
-
+    #[allow(dead_code)]
     pub mod sim_3d {
         macro_rules! index {
             ($x:expr, $y:expr, $z:expr, $size:expr) => {
@@ -382,6 +385,7 @@ pub mod simulation {
                 self.vz[index] += amount_z;
             }
         }
+
         pub mod utils {
             fn set_bnd(b: i32, x: &mut Vec<f32>, size_n: i32) {
                 for j in 1..(size_n - 1) {

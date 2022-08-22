@@ -6,27 +6,52 @@ mod fluids;
 mod debug;
 
 use fluids::simulation::sim_2d::{FluidPlane, index, clamp_index};
+use debug::DebugPlugin;
 
 use bevy::prelude::*;
 use bevy::input::mouse::MouseMotion;
 use bevy::sprite::MaterialMesh2dBundle;
+use bevy_inspector_egui::Inspectable;
+
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins)
+        .add_plugin(DebugPlugin)
+        .add_startup_system_to_stage(StartupStage::PostStartup, spawn_fluid_system)
+        .add_system(user_mouse_fluid_system)
+        .add_system(simulate_fluid_system)
+        .add_system(display_fluid_state_system)
+        .add_system(fade_fluid_system)
+        .run();
+}
+
 
 fn spawn_fluid_system(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-
     let sim_state = SimulationState::default();
-    let mesh = MaterialMesh2dBundle {
-        mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
-        transform: Transform::default().with_scale(Vec3::splat(128.)),
-        material: materials.add(ColorMaterial::from(Color::rgba(0., 1., 0., 0.3))),
-        ..default()
-    };
 
     commands.spawn_bundle(Camera2dBundle::default());
-    commands.spawn_bundle(mesh).insert(sim_state);
+    let tile_size = 10.0;
+    let sz = sim_state.size;
+    for i in 0..sz {
+        for j in 0..sz {
+            let x = i as f32;
+            let y = j as f32;
+
+            let mesh = MaterialMesh2dBundle {
+                mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
+                transform: Transform::from_xyz(x * tile_size, -y * tile_size, 100.).with_scale(Vec3::splat(tile_size)),
+                material: materials.add(ColorMaterial::from(Color::rgba(1., 1., 1., 1.))),
+                ..default()
+            };
+            commands.spawn_bundle(mesh);
+        }
+    }
+
+    commands.spawn().insert(sim_state);
 }
 
 fn user_mouse_fluid_system(
@@ -81,16 +106,16 @@ fn fade_fluid_system(
 
 fn display_fluid_state_system(
     // time: Res<Time>,
-    mut query: Query<(&mut SimulationState)>
+    mut query: Query<&mut SimulationState>
 ) {
     for sim_state in query.iter_mut() {
         if sim_state.start_simulation {
             let sz = sim_state.size;
             for i in 0..sz {
                 for j in 0..sz {
-                    let x = i as f32;
-                    let y = j as f32;
-                    let d = sim_state.fluid.density[index!(i, j, sz)];
+                    let _x = i as f32;
+                    let _y = j as f32;
+                    let _d = sim_state.fluid.density[index!(i, j, sz)];
 
                     // let p = graphics::DrawParam::new()
                     //     .color(graphics::Color::new(1.0, 1.0, 1.0, d * scale_float))
@@ -102,18 +127,7 @@ fn display_fluid_state_system(
     }
 }
 
-fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins)
-        .add_startup_system_to_stage(StartupStage::PostStartup, spawn_fluid_system)
-        .add_system(user_mouse_fluid_system)
-        .add_system(simulate_fluid_system)
-        .add_system(display_fluid_state_system)
-        .add_system(fade_fluid_system)
-        .run();
-}
-
-#[derive(Component)]
+#[derive(Debug, Component, Inspectable)]
 struct SimulationState {
     size: i32,
     iter: i32,
