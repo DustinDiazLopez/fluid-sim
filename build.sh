@@ -14,5 +14,5 @@ trunk build --release
 rm docs/*
 mkdir -p docs
 cp -r ./dist/* ./docs
-
+sed -i 's/\/fluid/\.\/fluid/g' ./docs/index.html
 #cargo build --release --target x86_64-pc-windows-gnu
