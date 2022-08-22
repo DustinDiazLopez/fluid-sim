@@ -2,8 +2,16 @@
 
 # TODO: https://bevy-cheatbook.github.io/platforms/wasm.html
 rustup target add wasm32-unknown-unknown
-cargo install wasm-server-runner
+rustup target add x86_64-pc-windows-gnu
 
-#cargo build --release
-#cargo build --target wasm32-unknown-unknown --release
-#cp ./target/wasm32-unknown-unknown/release/fluid_rs.wasm ./docs/.
+cargo install trunk
+cargo install wasm-bindgen-cli
+
+trunk build
+
+trunk build --release
+rm -rf docs
+mkdir docs
+cp -r ./dist/* ./docs
+
+cargo build --release --target x86_64-pc-windows-gnu
